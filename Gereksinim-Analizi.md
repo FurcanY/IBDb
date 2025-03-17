@@ -18,7 +18,7 @@
 
 9) Popüler Kitaplar Listesi: En çok puan alan veya en çok okunan kitapların kitap kategorilerine göre listelerin olduğu bir sayfa.
 
-10) Kitap Alıntıları Paylaşma: Kullanıcıların kitaplardan beğendikleri alıntıları paylaşabileceği ve diğer kullanıcıların bu alıntıları beğenebileceği bir özellik.
+10) Profil Düzenleme ve Puan Düzenleme: Kullanıcıların profil sayfalarını düzenleyebileceği ve kitaplara vermiş oldukları puanları değiştirebilecekleri bir özellik.
 
 
 # Gereksinim Dağılımları

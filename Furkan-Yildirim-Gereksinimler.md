@@ -25,6 +25,5 @@ Kullanıcılar, ileride okumak istedikleri kitapları bir listeye ekleyebilirler
 9) **Popüler Kitaplar Listesi**
 Platformda en çok puan alan veya en çok okunan kitaplar, kategorilere göre listelenir. Örneğin, "En Çok Okunan Romanlar" veya "En Yüksek Puanlı Bilim Kurgu Kitapları" gibi listeler oluşturulur. Bu sayede kullanıcılar, popüler kitapları keşfedebilir ve okuma listelerine ekleyebilirler.
 
-10) **Kitap Alıntıları Paylaşma**
-Kullanıcılar, okudukları kitaplardan beğendikleri alıntıları (kısa cümleler veya paragraflar) platformda paylaşabilirler. Bu alıntılar, diğer kullanıcılar tarafından görüntülenebilir ve beğenilebilir. Örneğin, bir kitaptan etkilendiğiniz bir cümleyi paylaşabilir ve diğer kullanıcıların bu alıntıyı beğenmesini sağlayabilirsiniz.
-
+10) **Profil Düzenleme ve Puan Düzenleme**
+Kullanıcılar, kişisel profillerini düzenleyebilir ve daha önce verdikleri kitap puanlarını güncelleyebilirler. Bu özellik, kullanıcıların profillerini kişiselleştirmesine ve okuma deneyimlerini daha doğru bir şekilde yansıtmasına olanak tanır.
