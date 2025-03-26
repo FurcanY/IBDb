@@ -1,3 +1,5 @@
 # Durum Senaryoları
 
-![Durum Senaryoları](./usecases.pdf)
+
+
+1. [Furkan Yıldırım Durum Senaryosu](./usecases.pdf)
