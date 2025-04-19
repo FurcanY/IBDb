@@ -8,6 +8,7 @@ import { Pencil, Plus, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { mockBooks, mockReviews, mockUsers } from "@/lib/mock-data"
 import BookCard from "@/components/book-card"
 
@@ -15,6 +16,9 @@ export default function ProfilePage() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get("tab")
   const [activeTab, setActiveTab] = useState(tabParam || "about")
+  const [selectedBook, setSelectedBook] = useState<typeof mockBooks[0] | null>(null)
+  const [rating, setRating] = useState(0)
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false)
 
   // Update active tab when URL parameter changes
   useEffect(() => {
@@ -45,6 +49,16 @@ export default function ProfilePage() {
       books: mockBooks.slice(3, 5),
     },
   ]
+
+  const handleRatingSubmit = () => {
+    if (selectedBook && rating > 0) {
+      // Burada gerçek bir API çağrısı yapılacak
+      console.log(`Kitap ${selectedBook.id} için yeni puan: ${rating}`)
+      setIsRatingDialogOpen(false)
+      setRating(0)
+      setSelectedBook(null)
+    }
+  }
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -161,9 +175,55 @@ export default function ProfilePage() {
                           </Link>
                           <p className="text-sm text-gray-500">Yazar: {book.author}</p>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{(Math.random() * 3 + 2).toFixed(1)}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                            <span className="font-medium">{(Math.random() * 3 + 2).toFixed(1)}</span>
+                          </div>
+                          <Dialog open={isRatingDialogOpen && selectedBook?.id === book.id} onOpenChange={setIsRatingDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedBook(book)
+                                  setRating(0)
+                                  setIsRatingDialogOpen(true)
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>"{book.title}" kitabını puanlayın</DialogTitle>
+                                <DialogDescription>
+                                  Bu kitabı nasıl puanlarsınız? Puanınız diğer okuyuculara yardımcı olur.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex justify-center py-4">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button key={star} type="button" onClick={() => setRating(star)} className="p-1">
+                                    <Star
+                                      className={`h-8 w-8 ${rating >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsRatingDialogOpen(false)}>
+                                  İptal
+                                </Button>
+                                <Button
+                                  onClick={handleRatingSubmit}
+                                  className="bg-yellow-400 text-black hover:bg-yellow-500"
+                                  disabled={rating === 0}
+                                >
+                                  Puanı Güncelle
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </div>
                     ))}
