@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,11 +21,53 @@ import {
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
 
-  const handleSearch = (e: React.FormEvent) => {
+  // URL'deki query parametresini kontrol et
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const query = urlParams.get("query")
+    if (query) {
+      setSearchQuery(query)
+    }
+  }, [])
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    window.location.href = `/search?query=${encodeURIComponent(searchQuery)}`
+    if (!searchQuery.trim()) return
+
+    setIsSearching(true)
+    
+    try {
+      // Arama sayfasına yönlendir
+      await router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`)
+    } catch (error) {
+      console.error("Yönlendirme hatası:", error)
+    } finally {
+      // Her durumda arama durumunu sıfırla
+      setIsSearching(false)
+    }
+  }
+
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      if (!searchQuery.trim()) return
+
+      setIsSearching(true)
+      
+      try {
+        // Arama sayfasına yönlendir
+        await router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`)
+      } catch (error) {
+        console.error("Yönlendirme hatası:", error)
+      } finally {
+        // Her durumda arama durumunu sıfırla
+        setIsSearching(false)
+      }
+    }
   }
 
   return (
@@ -53,15 +95,26 @@ export default function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <form onSubmit={handleSearch} className="relative hidden md:block">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="search"
-              placeholder="Kitap, yazar ara..."
-              className="w-[300px] pl-8 bg-white"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <form onSubmit={handleSearch} className="flex-1">
+            <div className="flex w-full max-w-sm items-center space-x-2">
+              <Input
+                type="search"
+                placeholder="Kitap ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isSearching}
+                className="bg-white text-black placeholder:text-gray-500"
+              />
+              <Button 
+                type="submit" 
+                size="icon" 
+                disabled={isSearching}
+                className="bg-black text-white hover:bg-gray-800"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
           </form>
           {isLoggedIn ? (
             <DropdownMenu>

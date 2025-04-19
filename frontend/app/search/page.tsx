@@ -1,144 +1,165 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
+import { Book } from "@/lib/types"
+import { mockBooks } from "@/lib/mock-data"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { mockBooks } from "@/lib/mock-data"
-import BookCard from "@/components/book-card"
+import { Search, Loader2 } from "lucide-react"
+import Link from "next/link"
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams()
-  const initialQuery = searchParams.get("query") || ""
-
-  const [searchQuery, setSearchQuery] = useState(initialQuery)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [results, setResults] = useState<Book[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
-  const [results, setResults] = useState<typeof mockBooks>([])
-  const [hasSearched, setHasSearched] = useState(false)
 
   useEffect(() => {
-    if (initialQuery) {
-      performSearch(initialQuery)
+    const query = searchParams.get("query")
+    if (query) {
+      setSearchQuery(query)
+      performSearch(query)
     }
-  }, [initialQuery])
+  }, [searchParams])
 
-  const performSearch = (query: string) => {
-    setHasSearched(true)
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
+  const performSearch = async (query: string) => {
+    setIsLoading(true)
 
-    const lowerQuery = query.toLowerCase()
-    const filtered = mockBooks.filter(
-      (book) =>
-        book.title.toLowerCase().includes(lowerQuery) ||
-        book.author.toLowerCase().includes(lowerQuery) ||
-        book.category.toLowerCase().includes(lowerQuery),
-    )
+    // Yapay gecikme ekle
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-    setResults(filtered)
+    const filteredBooks = mockBooks.filter(book => {
+      const searchTerm = query.toLowerCase()
+      const bookTitle = book.title.toLowerCase()
+      const bookAuthor = book.author.toLowerCase()
+      const bookCategory = book.category.toLowerCase()
+      
+      return (
+        bookTitle.includes(searchTerm) ||
+        bookAuthor.includes(searchTerm) ||
+        bookCategory.includes(searchTerm)
+      )
+    })
+
+    setResults(filteredBooks)
+    setIsLoading(false)
   }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!searchQuery.trim()) return
     performSearch(searchQuery)
   }
 
-  const filterByCategory = (category: string) => {
-    if (category === "all") {
-      performSearch(searchQuery)
-    } else {
-      const filtered = mockBooks.filter(
-        (book) =>
-          book.category.toLowerCase() === category &&
-          (!searchQuery.trim() ||
-            book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            book.author.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
-      setResults(filtered)
-    }
-  }
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    filterByCategory(value)
-  }
+  const filteredResults = activeTab === "all" 
+    ? results 
+    : results.filter(book => book.category.toLowerCase() === activeTab)
 
   return (
-    <div className="container py-8 px-4 md:px-6">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-bold">Kitap Ara</h1>
-        <p className="text-gray-500">IBDb'de milyonlarca kitap arasında arama yapın</p>
-      </div>
-
+    <div className="container mx-auto px-4 py-8">
       <form onSubmit={handleSearch} className="mb-8">
-        <div className="flex gap-4">
+        <div className="flex w-full max-w-2xl mx-auto gap-2">
           <Input
             type="search"
-            placeholder="Kitap adı, yazar veya kategori ara..."
+            placeholder="Kitap, yazar veya kategori ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1"
           />
-          <Button type="submit">Ara</Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Aranıyor...
+              </>
+            ) : (
+              <>
+                <Search className="mr-2 h-4 w-4" />
+                Ara
+              </>
+            )}
+          </Button>
         </div>
       </form>
 
-      {hasSearched && (
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">Tümü</TabsTrigger>
-            {["kurgu", "kurgu-dışı", "bilim-kurgu", "gizem", "romantik"].map((category) => (
-              <TabsTrigger key={category} value={category}>
-                {category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ")}
-              </TabsTrigger>
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : results.length > 0 ? (
+        <>
+          <div className="flex gap-4 mb-6">
+            <Button
+              variant={activeTab === "all" ? "default" : "outline"}
+              onClick={() => setActiveTab("all")}
+            >
+              Tümü
+            </Button>
+            <Button
+              variant={activeTab === "edebiyat" ? "default" : "outline"}
+              onClick={() => setActiveTab("edebiyat")}
+            >
+              Edebiyat
+            </Button>
+            <Button
+              variant={activeTab === "bilim kurgu" ? "default" : "outline"}
+              onClick={() => setActiveTab("bilim kurgu")}
+            >
+              Bilim Kurgu
+            </Button>
+            <Button
+              variant={activeTab === "fantastik" ? "default" : "outline"}
+              onClick={() => setActiveTab("fantastik")}
+            >
+              Fantastik
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredResults.map((book) => (
+              <Link href={`/book/${book.id}`} key={book.id}>
+                <div className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+                  <div className="aspect-[3/4] relative mb-4">
+                    <img
+                      src={book.coverImage}
+                      alt={book.title}
+                      className="object-cover rounded-md w-full h-full"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-1">{book.title}</h3>
+                  <p className="text-gray-600 mb-2">{book.author}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">{book.category}</span>
+                    <span className="text-sm font-medium">⭐ {book.rating}</span>
+                  </div>
+                </div>
+              </Link>
             ))}
-          </TabsList>
-
-          <TabsContent value="all" className="mt-0">
-            {results.length > 0 ? (
-              <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {results.map((book) => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed p-8 text-center">
-                <h2 className="text-xl font-semibold">Sonuç bulunamadı</h2>
-                <p className="mt-2 text-gray-500">Arama kriterlerinizi değiştirerek tekrar deneyin.</p>
-              </div>
-            )}
-          </TabsContent>
-
-          {["kurgu", "kurgu-dışı", "bilim-kurgu", "gizem", "romantik"].map((category) => (
-            <TabsContent key={category} value={category} className="mt-0">
-              {results.length > 0 ? (
-                <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {results.map((book) => (
-                    <BookCard key={book.id} book={book} />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <h2 className="text-xl font-semibold">Sonuç bulunamadı</h2>
-                  <p className="mt-2 text-gray-500">Arama kriterlerinizi değiştirerek tekrar deneyin.</p>
-                </div>
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
-      )}
-
-      {!hasSearched && (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <h2 className="text-xl font-semibold">Arama yapın</h2>
-          <p className="mt-2 text-gray-500">Kitap adı, yazar veya kategori ile arama yapabilirsiniz.</p>
+          </div>
+        </>
+      ) : searchQuery ? (
+        <div className="text-center py-12">
+          <p className="text-gray-600">Aramanızla eşleşen sonuç bulunamadı.</p>
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-600">Arama yapmak için yukarıdaki arama kutusunu kullanın.</p>
         </div>
       )}
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <SearchContent />
+    </Suspense>
   )
 }

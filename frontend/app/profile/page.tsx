@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, Suspense } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -12,20 +12,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { mockBooks, mockReviews, mockUsers } from "@/lib/mock-data"
 import BookCard from "@/components/book-card"
 
-export default function ProfilePage() {
+function ProfileContent() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get("tab")
   const [activeTab, setActiveTab] = useState(tabParam || "about")
   const [selectedBook, setSelectedBook] = useState<typeof mockBooks[0] | null>(null)
   const [rating, setRating] = useState(0)
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false)
-
-  // Update active tab when URL parameter changes
-  useEffect(() => {
-    if (tabParam && ["about", "ratings", "reviews", "lists"].includes(tabParam)) {
-      setActiveTab(tabParam)
-    }
-  }, [tabParam])
 
   // Mock user data - in a real app, this would come from authentication
   const user = mockUsers[0]
@@ -320,5 +313,13 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <ProfileContent />
+    </Suspense>
   )
 }
