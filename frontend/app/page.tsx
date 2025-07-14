@@ -1,13 +1,41 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import BookCard from "@/components/book-card"
-import { mockBooks } from "@/lib/mock-data"
+import { Book } from "@/lib/types"
 
 export default function Home() {
-  // Get top rated books
-  const topRatedBooks = [...mockBooks].sort((a, b) => b.rating - a.rating).slice(0, 6)
+  const [topRatedBooks, setTopRatedBooks] = useState<Book[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Get popular books by category
+  useEffect(() => {
+    async function fetchBooks() {
+      setLoading(true)
+      try {
+        const res = await fetch("http://localhost:5000/api/books/popular")
+        const data = await res.json()
+        const books: Book[] = data.map((item: any) => ({
+          id: item._id,
+          title: item.title,
+          author: item.author,
+          publishDate: item.publishDate,
+          pageCount: item.pageCount,
+          summary: item.summary,
+          category: item.category,
+          coverImage: item.coverImage,
+          rating: item.averageRating || 0,
+        }))
+        setTopRatedBooks(books.slice(0, 6))
+      } catch {
+        setTopRatedBooks([])
+      }
+      setLoading(false)
+    }
+    fetchBooks()
+  }, [])
+
   const categories = ["Edebiyat", "Felsefe", "Bilim Kurgu", "Çocuk Edebiyatı", "Fantastik", "Polisiye", "Tarih"]
 
   return (
@@ -47,31 +75,18 @@ export default function Home() {
           </Button>
         </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {topRatedBooks.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
+          {loading ? (
+            <div className="col-span-full text-center text-gray-500">Yükleniyor...</div>
+          ) : topRatedBooks.length > 0 ? (
+            topRatedBooks.map((book) => <BookCard key={book.id} book={book} />)
+          ) : (
+            <div className="col-span-full text-center text-gray-500">Kitap bulunamadı.</div>
+          )}
         </div>
       </section>
 
       {/* Popular by Category */}
-      {categories.map((category) => (
-        <section key={category} className="container px-4 md:px-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">{category} Kategorisinde Popüler</h2>
-            <Button asChild variant="link">
-              <Link href="/popular">Tümünü Gör</Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {mockBooks
-              .filter((book) => book.category === category)
-              .slice(0, 6)
-              .map((book) => (
-                <BookCard key={book.id} book={book} />
-              ))}
-          </div>
-        </section>
-      ))}
+      {/* Kategorilere göre popüler kitaplar için ek backend entegrasyonu yapılabilir */}
     </div>
   )
 }

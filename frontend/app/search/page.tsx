@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Book } from "@/lib/types"
-import { mockBooks } from "@/lib/mock-data"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, Loader2 } from "lucide-react"
@@ -26,24 +25,25 @@ function SearchContent() {
 
   const performSearch = async (query: string) => {
     setIsLoading(true)
-
-    // Yapay gecikme ekle
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const filteredBooks = mockBooks.filter(book => {
-      const searchTerm = query.toLowerCase()
-      const bookTitle = book.title.toLowerCase()
-      const bookAuthor = book.author.toLowerCase()
-      const bookCategory = book.category.toLowerCase()
-      
-      return (
-        bookTitle.includes(searchTerm) ||
-        bookAuthor.includes(searchTerm) ||
-        bookCategory.includes(searchTerm)
-      )
-    })
-
-    setResults(filteredBooks)
+    try {
+      const res = await fetch(`http://localhost:5000/api/books/search?query=${encodeURIComponent(query)}`)
+      const data = await res.json()
+      // Backend'den gelen veriyi Book tipine dönüştür
+      const books: Book[] = data.map((item: any) => ({
+        id: item._id,
+        title: item.title,
+        author: item.author,
+        publishDate: item.publishDate,
+        pageCount: item.pageCount,
+        summary: item.summary,
+        category: item.category,
+        coverImage: item.coverImage,
+        rating: item.averageRating || 0,
+      }))
+      setResults(books)
+    } catch (err) {
+      setResults([])
+    }
     setIsLoading(false)
   }
 

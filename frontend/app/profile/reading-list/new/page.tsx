@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { mockBooks } from "@/lib/mock-data"
 import type { Book } from "@/lib/types"
 
 export default function CreateReadingListPage() {
@@ -21,22 +20,32 @@ export default function CreateReadingListPage() {
   const [selectedBooks, setSelectedBooks] = useState<Book[]>([])
   const [searchResults, setSearchResults] = useState<Book[]>([])
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault()
     }
-
     if (!searchQuery.trim()) {
       setSearchResults([])
       return
     }
-
-    const query = searchQuery.toLowerCase()
-    const results = mockBooks
-      .filter((book) => book.title.toLowerCase().includes(query) || book.author.toLowerCase().includes(query))
-      .slice(0, 5)
-
-    setSearchResults(results)
+    try {
+      const res = await fetch(`http://localhost:5000/api/books/search?query=${encodeURIComponent(searchQuery)}`)
+      const data = await res.json()
+      const books: Book[] = data.map((item: any) => ({
+        id: item._id,
+        title: item.title,
+        author: item.author,
+        publishDate: item.publishDate,
+        pageCount: item.pageCount,
+        summary: item.summary,
+        category: item.category,
+        coverImage: item.coverImage,
+        rating: item.averageRating || 0,
+      }))
+      setSearchResults(books)
+    } catch {
+      setSearchResults([])
+    }
   }
 
   const addBook = (book: Book) => {
@@ -51,27 +60,39 @@ export default function CreateReadingListPage() {
     setSelectedBooks(selectedBooks.filter((book) => book.id !== bookId))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!listName.trim()) {
       alert("Lütfen okuma listeniz için bir isim girin")
       return
     }
-
     if (selectedBooks.length === 0) {
       alert("Lütfen okuma listenize en az bir kitap ekleyin")
       return
     }
-
-    // In a real app, you would save the reading list to your backend
-    console.log("Reading list created:", {
-      name: listName,
-      books: selectedBooks,
-    })
-
-    // Redirect back to profile page with the lists tab active
-    router.push("/profile?tab=lists")
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("http://localhost:5000/api/users/me/reading-lists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: listName,
+          bookIds: selectedBooks.map((b) => b.id),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.message || "Liste oluşturulamadı")
+        return
+      }
+      // Başarılı
+      router.push("/profile?tab=lists")
+    } catch {
+      alert("Sunucu hatası")
+    }
   }
 
   return (

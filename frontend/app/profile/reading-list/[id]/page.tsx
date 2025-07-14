@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { use, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { X, Search } from "lucide-react"
@@ -10,68 +10,80 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { mockBooks } from "@/lib/mock-data"
 import type { Book } from "@/lib/types"
 
-// Mock reading lists data
-const mockReadingLists = [
-  {
-    id: "1",
-    userId: "1",
-    name: "Okunacaklar",
-    books: mockBooks.slice(0, 3),
-  },
-  {
-    id: "2",
-    userId: "1",
-    name: "Favoriler",
-    books: mockBooks.slice(3, 5),
-  },
-]
+// mockBooks ile ilgili kodlar kaldırıldı
 
-export default function EditReadingListPage({ params }: { params: { id: string } }) {
+export default function EditReadingListPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const listId = params.id
-
-  // Find the reading list by ID
-  const existingList = mockReadingLists.find((list) => list.id === listId)
-
+  const { id: listId } = use(params)
   const [listName, setListName] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedBooks, setSelectedBooks] = useState<Book[]>([])
   const [searchResults, setSearchResults] = useState<Book[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Load existing list data
   useEffect(() => {
-    if (existingList) {
-      setListName(existingList.name)
-      setSelectedBooks(existingList.books)
-    } else {
-      // Redirect if list not found
-      router.push("/profile")
+    async function fetchList() {
+      setLoading(true)
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch(`http://localhost:5000/api/users/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        const list = data.readingLists.find((l: any) => l._id === listId)
+        if (!list) {
+          router.push("/profile")
+          return
+        }
+        setListName(list.name)
+        setSelectedBooks(list.books.map((book: any) => ({
+          id: book._id,
+          title: book.title,
+          author: book.author,
+          publishDate: book.publishDate,
+          pageCount: book.pageCount,
+          summary: book.summary,
+          category: book.category,
+          coverImage: book.coverImage,
+          rating: book.averageRating || 0,
+        })))
+      } catch {
+        router.push("/profile")
+      }
+      setLoading(false)
     }
-  }, [existingList, router])
+    fetchList()
+  }, [listId, router])
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault()
     }
-
     if (!searchQuery.trim()) {
       setSearchResults([])
       return
     }
-
-    const query = searchQuery.toLowerCase()
-    const results = mockBooks
-      .filter(
-        (book) =>
-          (book.title.toLowerCase().includes(query) || book.author.toLowerCase().includes(query)) &&
-          !selectedBooks.some((selectedBook) => selectedBook.id === book.id),
-      )
-      .slice(0, 5)
-
-    setSearchResults(results)
+    try {
+      const res = await fetch(`http://localhost:5000/api/books/search?query=${encodeURIComponent(searchQuery)}`)
+      const data = await res.json()
+      const books: Book[] = data.map((item: any) => ({
+        id: item._id,
+        title: item.title,
+        author: item.author,
+        publishDate: item.publishDate,
+        pageCount: item.pageCount,
+        summary: item.summary,
+        category: item.category,
+        coverImage: item.coverImage,
+        rating: item.averageRating || 0,
+      }))
+      setSearchResults(books.filter((book) => !selectedBooks.some((b) => b.id === book.id)))
+    } catch {
+      setSearchResults([])
+    }
   }
 
   const addBook = (book: Book) => {
@@ -86,32 +98,58 @@ export default function EditReadingListPage({ params }: { params: { id: string }
     setSelectedBooks(selectedBooks.filter((book) => book.id !== bookId))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!listName.trim()) {
       alert("Lütfen okuma listeniz için bir isim girin")
       return
     }
-
     if (selectedBooks.length === 0) {
       alert("Lütfen okuma listenize en az bir kitap ekleyin")
       return
     }
-
-    // In a real app, you would update the reading list in your backend
-    console.log("Reading list updated:", {
-      id: listId,
-      name: listName,
-      books: selectedBooks,
-    })
-
-    // Redirect back to profile page
-    router.push("/profile?tab=lists")
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`http://localhost:5000/api/users/me/reading-lists/${listId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: listName,
+          bookIds: selectedBooks.map((b) => b.id),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.message || "Liste güncellenemedi")
+        return
+      }
+      // Başarılı
+      router.push("/profile?tab=lists")
+    } catch {
+      alert("Sunucu hatası")
+    }
   }
 
-  if (!existingList) {
-    return null // This will be handled by the useEffect redirect
+  // Listeyi silme
+  const handleDeleteList = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`http://localhost:5000/api/users/me/reading-lists/${listId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        router.push("/profile?tab=lists")
+      }
+      // Başarısız olursa sessizce kal
+    } catch {}
+  }
+
+  if (loading) {
+    return <div className="container py-8 px-4 md:px-6 text-center text-gray-500">Yükleniyor...</div>
   }
 
   return (
@@ -121,6 +159,9 @@ export default function EditReadingListPage({ params }: { params: { id: string }
           <CardHeader>
             <CardTitle>Okuma Listesini Düzenle</CardTitle>
             <CardDescription>Okuma listenizin adını ve kitaplarını güncelleyin</CardDescription>
+            <Button type="button" variant="destructive" className="mt-4" onClick={handleDeleteList}>
+              Listeyi Sil
+            </Button>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6">

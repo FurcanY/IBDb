@@ -8,28 +8,125 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { Book } from "@/lib/types"
+import { useEffect } from "react"
 
 interface BookDetailsProps {
   book: Book
+  userRating?: number | null
 }
 
-export function BookDetails({ book }: BookDetailsProps) {
+export function BookDetails({ book, userRating, onReviewAdded }: BookDetailsProps & { onReviewAdded?: (review: any) => void }) {
   const [activeTab, setActiveTab] = useState("overview")
   const [isRatingDialogOpen, setIsRatingDialogOpen] = useState(false)
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
-  const [rating, setRating] = useState(0)
+  const [rating, setRating] = useState(userRating || 0)
   const [review, setReview] = useState("")
 
-  const handleRatingSubmit = () => {
-    // TODO: Implement rating submission
-    setIsRatingDialogOpen(false)
-    setRating(0)
+  // Okuma listesi için
+  const [isListDialogOpen, setIsListDialogOpen] = useState(false)
+  const [readingLists, setReadingLists] = useState<any[]>([])
+  const [selectedListId, setSelectedListId] = useState<string>("")
+  const [adding, setAdding] = useState(false)
+
+  useEffect(() => {
+    async function fetchLists() {
+      const token = localStorage.getItem("token")
+      if (!token) return
+      const res = await fetch("http://localhost:5000/api/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      setReadingLists(data.readingLists || [])
+    }
+    if (isListDialogOpen) fetchLists()
+  }, [isListDialogOpen])
+
+  const handleAddToList = async () => {
+    if (!selectedListId) return
+    setAdding(true)
+    const selectedList = readingLists.find((l: any) => l._id === selectedListId || l.id === selectedListId)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`http://localhost:5000/api/users/me/reading-lists/${selectedListId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: selectedList?.name || "",
+          bookIds: [book.id]
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setAdding(false)
+        return
+      }
+      setIsListDialogOpen(false)
+      setSelectedListId("")
+    } catch {
+      // Hata durumunda sessizce devam et
+    }
+    setAdding(false)
   }
 
-  const handleReviewSubmit = () => {
-    // TODO: Implement review submission
-    setIsReviewDialogOpen(false)
-    setReview("")
+  // Dialog açıldığında rating'i userRating ile başlat
+  const handleOpenRatingDialog = (open: boolean) => {
+    setIsRatingDialogOpen(open)
+    if (open) {
+      setRating(userRating || 0)
+    }
+  }
+
+  const handleReviewSubmit = async () => {
+    if (!review.trim()) return
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`http://localhost:5000/api/books/${book.id}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: review }),
+      })
+      if (!res.ok) {
+        // Hata durumunda sessizce devam et
+        return
+      }
+      const newReview = await res.json();
+      setIsReviewDialogOpen(false)
+      setReview("")
+      if (onReviewAdded) onReviewAdded(newReview)
+    } catch {
+      // Hata durumunda sessizce devam et
+    }
+  }
+
+  const handleRatingSubmit = async () => {
+    if (!rating) return
+    try {
+      const token = localStorage.getItem("token")
+      const method = userRating ? "PUT" : "POST"
+      const res = await fetch(`http://localhost:5000/api/books/${book.id}/rate`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ value: rating }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        return
+      }
+      setIsRatingDialogOpen(false)
+      setRating(rating)
+      window.location.reload()
+    } catch {
+      // Hata durumunda sessizce devam et
+    }
   }
 
   return (
@@ -47,7 +144,7 @@ export function BookDetails({ book }: BookDetailsProps) {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Dialog open={isRatingDialogOpen} onOpenChange={setIsRatingDialogOpen}>
+            <Dialog open={isRatingDialogOpen} onOpenChange={handleOpenRatingDialog}>
               <DialogTrigger asChild>
                 <Button className="w-full bg-yellow-400 text-black hover:bg-yellow-500">Bu kitabı puanla</Button>
               </DialogTrigger>
@@ -116,9 +213,43 @@ export function BookDetails({ book }: BookDetailsProps) {
               </DialogContent>
             </Dialog>
 
-            <Button variant="outline" className="w-full">
-              Okuma listesine ekle
-            </Button>
+            <Dialog open={isListDialogOpen} onOpenChange={setIsListDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">Okuma listesine ekle</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Okuma Listesine Ekle</DialogTitle>
+                  <DialogDescription>Kitabı eklemek istediğiniz okuma listesini seçin.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {readingLists.length === 0 ? (
+                    <div className="text-gray-500">Hiç okuma listeniz yok. Profilinizden yeni bir liste oluşturabilirsiniz.</div>
+                  ) : (
+                    <select
+                      className="w-full border rounded p-2"
+                      value={selectedListId}
+                      onChange={e => setSelectedListId(e.target.value)}
+                    >
+                      <option value="">Liste seçin</option>
+                      {readingLists.map((list: any) => (
+                        <option key={list._id || list.id} value={list._id || list.id}>{list.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsListDialogOpen(false)}>İptal</Button>
+                  <Button
+                    onClick={handleAddToList}
+                    className="bg-yellow-400 text-black hover:bg-yellow-500"
+                    disabled={!selectedListId || adding}
+                  >
+                    Ekle
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
@@ -134,16 +265,14 @@ export function BookDetails({ book }: BookDetailsProps) {
           <div className="flex items-center gap-4">
             <div className="flex items-center">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              <span className="ml-1 font-medium">{book.rating.toFixed(1)}</span>
-              <span className="ml-1 text-gray-500">(500 puan)</span>
+              <span className="ml-1 font-medium">{typeof book.rating === "number" ? book.rating.toFixed(1) : "-"}</span>
             </div>
           </div>
 
           <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
               <TabsTrigger value="details">Detaylar</TabsTrigger>
-              <TabsTrigger value="reviews">İncelemeler</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="py-4">
               <div className="space-y-4">

@@ -26,26 +26,42 @@ export default function SignupPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-    // Basic validation
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError("Tüm alanlar zorunludur")
-      return
+      setError("Tüm alanlar zorunludur");
+      return;
     }
-
     if (formData.password !== formData.confirmPassword) {
-      setError("Şifreler eşleşmiyor")
-      return
+      setError("Şifreler eşleşmiyor");
+      return;
     }
 
-    // In a real app, you would send this data to your backend
-    console.log("Form submitted:", formData)
-
-    // Simulate successful signup
-    router.push("/login?registered=true")
-  }
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.firstName,
+          surname: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "Kayıt başarısız");
+        return;
+      }
+      // Başarılı kayıt
+      window.dispatchEvent(new Event("authChanged"));
+      router.push("/login?registered=true");
+    } catch (err) {
+      setError("Sunucu hatası");
+    }
+  };
 
   return (
     <div className="container flex items-center justify-center py-10 px-4 md:px-6">

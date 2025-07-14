@@ -20,6 +20,7 @@ import {
 
 export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState<{ name?: string; surname?: string; email?: string; profileImage?: string } | null>(null)
   const pathname = usePathname()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
@@ -31,6 +32,25 @@ export default function Header() {
     const query = urlParams.get("query")
     if (query) {
       setSearchQuery(query)
+    }
+  }, [])
+
+  useEffect(() => {
+    // Oturum kontrolü: localStorage'da token var mı?
+    function syncAuthState() {
+      const token = localStorage.getItem("token")
+      const userData = localStorage.getItem("user")
+      setIsLoggedIn(!!token)
+      setUser(userData ? JSON.parse(userData) : null)
+    }
+    syncAuthState()
+    window.addEventListener("storage", syncAuthState)
+    window.addEventListener("focus", syncAuthState)
+    window.addEventListener("authChanged", syncAuthState)
+    return () => {
+      window.removeEventListener("storage", syncAuthState)
+      window.removeEventListener("focus", syncAuthState)
+      window.removeEventListener("authChanged", syncAuthState)
     }
   }, [])
 
@@ -68,6 +88,14 @@ export default function Header() {
         setIsSearching(false)
       }
     }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    setIsLoggedIn(false)
+    setUser(null)
+    router.push("/")
   }
 
   return (
@@ -121,16 +149,16 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Kullanıcı" />
-                    <AvatarFallback>K</AvatarFallback>
+                    <AvatarImage src={user?.profileImage || "/placeholder.svg?height=32&width=32"} alt="Kullanıcı" />
+                    <AvatarFallback>{user?.name?.[0] || "K"}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Kullanıcı</p>
-                    <p className="text-xs leading-none text-muted-foreground">kullanici@ornek.com</p>
+                    <p className="text-sm font-medium leading-none">{user?.name} {user?.surname}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -141,7 +169,7 @@ export default function Header() {
                   <Link href="/profile/edit">Profili Düzenle</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsLoggedIn(false)}>Çıkış Yap</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>Çıkış Yap</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (

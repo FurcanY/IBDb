@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -9,23 +9,43 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { mockUsers } from "@/lib/mock-data"
 import { Upload } from "lucide-react"
 
 export default function EditProfilePage() {
   const router = useRouter()
-  const user = mockUsers[0]
   const fileInputRef = useRef<HTMLInputElement>(null)
-
   const [formData, setFormData] = useState({
-    firstName: user.name,
-    lastName: user.surname,
-    email: user.email,
-    about: user.about || "",
-    profileImage: user.profileImage || "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    about: "",
+    profileImage: "",
   })
-
   const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchProfile() {
+      setLoading(true)
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch("http://localhost:5000/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        setFormData({
+          firstName: data.user.name || "",
+          lastName: data.user.surname || "",
+          email: data.user.email || "",
+          about: data.user.about || "",
+          profileImage: data.user.profileImage || "",
+        })
+        setPreviewImage(data.user.profileImage || null)
+      } catch {}
+      setLoading(false)
+    }
+    fetchProfile()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -35,23 +55,46 @@ export default function EditProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Dosya önizlemesi için URL oluştur
-      const imageUrl = URL.createObjectURL(file)
-      setPreviewImage(imageUrl)
-      setFormData((prev) => ({ ...prev, profileImage: file.name }))
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string)
+        setFormData((prev) => ({ ...prev, profileImage: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // In a real app, you would update the user profile in your backend
-    console.log("Profile updated:", formData)
-
-    // Redirect back to profile page
-    router.push("/profile")
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch("http://localhost:5000/api/users/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: formData.firstName,
+          surname: formData.lastName,
+          about: formData.about,
+          profileImage: formData.profileImage,
+        }),
+      })
+      if (res.ok) {
+        // Yeni kullanıcı bilgisini localStorage'a kaydet
+        const updated = await res.json();
+        localStorage.setItem("user", JSON.stringify(updated));
+        window.dispatchEvent(new Event('authChanged'));
+        router.push("/profile")
+      }
+      // Başarısız olursa sessizce kal
+    } catch {}
   }
 
+  if (loading) {
+    return <div className="container py-8 px-4 md:px-6 text-center text-gray-500">Yükleniyor...</div>
+  }
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="mx-auto max-w-2xl">
@@ -108,7 +151,7 @@ export default function EditProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="email">E-posta</Label>
-                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required disabled />
               </div>
 
               <div className="space-y-2">
@@ -124,12 +167,8 @@ export default function EditProfilePage() {
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
-              <Button type="button" variant="outline" onClick={() => router.push("/profile")}>
-                İptal
-              </Button>
-              <Button type="submit" className="bg-yellow-400 text-black hover:bg-yellow-500">
-                Değişiklikleri Kaydet
-              </Button>
+              <Button type="button" variant="outline" onClick={() => router.push("/profile")}>İptal</Button>
+              <Button type="submit" className="bg-yellow-400 text-black hover:bg-yellow-500">Değişiklikleri Kaydet</Button>
             </CardFooter>
           </form>
         </Card>

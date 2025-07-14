@@ -26,21 +26,38 @@ function LoginContent() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-    // Basic validation
     if (!formData.email || !formData.password) {
-      setError("E-posta ve şifre gereklidir")
-      return
+      setError("E-posta ve şifre gereklidir");
+      return;
     }
 
-    // In a real app, you would authenticate with your backend
-    console.log("Login attempted:", formData)
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
 
-    // Simulate successful login
-    router.push("/")
-  }
+      if (!res.ok) {
+        setError(data.message || "Giriş başarısız");
+        return;
+      }
+
+      // JWT token'ı localStorage'a kaydet
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.dispatchEvent(new Event("authChanged"));
+      // Ana sayfaya yönlendir
+      router.push("/");
+    } catch (err) {
+      setError("Sunucu hatası");
+    }
+  };
 
   return (
     <div className="container flex items-center justify-center py-10 px-4 md:px-6">
