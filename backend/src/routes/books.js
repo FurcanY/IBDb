@@ -3,6 +3,8 @@ const Book = require('../models/Book');
 const Review = require('../models/Review');
 const Rating = require('../models/Rating');
 const auth = require('../middleware/auth');
+const redisClient = require('../redisClient');
+const { sendToQueue } = require('../rabbitmq');
 
 const router = express.Router();
 
@@ -24,8 +26,18 @@ router.get('/search', async (req, res) => {
 router.get('/popular', async (req, res) => {
   const category = req.query.category;
   const filter = category ? { category } : {};
-  const books = await Book.find(filter).sort({ averageRating: -1 }).limit(10);
-  res.json(books);
+  const cacheKey = category ? `popular_books_${category}` : 'popular_books_all';
+  try {
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+    const books = await Book.find(filter).sort({ averageRating: -1 }).limit(10);
+    await redisClient.set(cacheKey, JSON.stringify(books), { EX: 3600 }); // 1 saatlik TTL
+    res.json(books);
+  } catch (err) {
+    res.status(500).json({ message: 'Sunucu hatası', error: err.message });
+  }
 });
 
 // Kitap detayı (yorum ve ortalama puan dahil)
@@ -66,6 +78,9 @@ router.post('/:id/rate', auth, async (req, res) => {
   const avg = ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length;
   book.averageRating = avg;
   await book.save();
+  // Redis popüler kitaplar önbelleğini temizle
+  await redisClient.del('popular_books_all');
+  await redisClient.del(`popular_books_${book.category}`);
   res.json({ message: 'Puan kaydedildi', averageRating: avg });
 });
 
@@ -84,6 +99,9 @@ router.put('/:id/rate', auth, async (req, res) => {
   const avg = ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length;
   book.averageRating = avg;
   await book.save();
+  // Redis popüler kitaplar önbelleğini temizle
+  await redisClient.del('popular_books_all');
+  await redisClient.del(`popular_books_${book.category}`);
   res.json({ message: 'Puan güncellendi', averageRating: avg });
 });
 
@@ -93,8 +111,29 @@ router.post('/:id/reviews', auth, async (req, res) => {
   if (!content) return res.status(400).json({ message: 'İnceleme içeriği zorunlu' });
   const book = await Book.findById(req.params.id);
   if (!book) return res.status(404).json({ message: 'Kitap bulunamadı' });
-  const review = await Review.create({ book: book._id, user: req.user.id, content });
-  res.json(review);
+  const review = await Review.create({ book: book._id, user: req.user.id, content, status: 'pending' });
+  // Redis popüler kitaplar önbelleğini temizle
+  if (book) {
+    await redisClient.del('popular_books_all');
+    await redisClient.del(`popular_books_${book.category}`);
+  }
+  // RabbitMQ'ya mesaj gönder
+  try {
+    console.log('RabbitMQ mesajı gönderiliyor...');
+    await sendToQueue('review_created', {
+      reviewId: review._id,
+      bookId: book._id,
+      userId: req.user.id,
+      content: review.content,
+      date: review.date,
+    });
+    console.log('RabbitMQ mesajı gönderildi!');
+  } catch (err) {
+    console.error('RabbitMQ mesajı gönderilemedi:', err);
+  }
+  // User'ı populate ederek dön
+  const populatedReview = await Review.findById(review._id).populate('user', 'name surname profileImage');
+  res.json(populatedReview);
 });
 
 // Kitap incelemesi güncelleme
@@ -106,6 +145,12 @@ router.put('/:id/reviews/:reviewId', auth, async (req, res) => {
   if (review.user.toString() !== req.user.id) return res.status(403).json({ message: 'Sadece kendi incelemenizi güncelleyebilirsiniz' });
   review.content = content;
   await review.save();
+  // Redis popüler kitaplar önbelleğini temizle
+  const book = await Book.findById(review.book);
+  if (book) {
+    await redisClient.del('popular_books_all');
+    await redisClient.del(`popular_books_${book.category}`);
+  }
   res.json(review);
 });
 
@@ -115,6 +160,12 @@ router.delete('/:id/reviews/:reviewId', auth, async (req, res) => {
   if (!review) return res.status(404).json({ message: 'İnceleme bulunamadı' });
   if (review.user.toString() !== req.user.id) return res.status(403).json({ message: 'Sadece kendi incelemenizi silebilirsiniz' });
   await review.deleteOne();
+  // Redis popüler kitaplar önbelleğini temizle
+  const book = await Book.findById(review.book);
+  if (book) {
+    await redisClient.del('popular_books_all');
+    await redisClient.del(`popular_books_${book.category}`);
+  }
   res.json({ message: 'İnceleme silindi' });
 });
 

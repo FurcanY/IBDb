@@ -225,7 +225,7 @@ function ProfileContent() {
                           <p className="text-sm text-gray-500">Yazar: {rating.book.author}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                            <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                           <span className="font-medium">{rating.value}</span>
                           <Button size="sm" variant="outline" className="ml-2" onClick={() => handleOpenRatingDialog(rating)}>
                             <Pencil className="w-4 h-4 mr-1" /> Düzenle
@@ -233,42 +233,42 @@ function ProfileContent() {
                         </div>
                       </div>
                     ))}
-                  </div>
+                          </div>
                 ) : (
                   <div className="text-gray-500">Hiç puanlanmış kitap yok.</div>
                 )}
                 {/* Puan düzenleme dialogu */}
                 <Dialog open={isRatingDialogOpen} onOpenChange={setIsRatingDialogOpen}>
-                  <DialogContent>
-                    <DialogHeader>
+                            <DialogContent>
+                              <DialogHeader>
                       <DialogTitle>Kitap Puanını Düzenle</DialogTitle>
-                      <DialogDescription>
-                        Bu kitabı nasıl puanlarsınız? Puanınız diğer okuyuculara yardımcı olur.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex justify-center py-4">
-                      {[1, 2, 3, 4, 5].map((star) => (
+                                <DialogDescription>
+                                  Bu kitabı nasıl puanlarsınız? Puanınız diğer okuyuculara yardımcı olur.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex justify-center py-4">
+                                {[1, 2, 3, 4, 5].map((star) => (
                         <button key={star} type="button" onClick={() => setNewRating(star)} className="p-1">
-                          <Star
+                                    <Star
                             className={`h-8 w-8 ${newRating >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsRatingDialogOpen(false)}>
-                        İptal
-                      </Button>
-                      <Button
-                        onClick={handleRatingSubmit}
-                        className="bg-yellow-400 text-black hover:bg-yellow-500"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsRatingDialogOpen(false)}>
+                                  İptal
+                                </Button>
+                                <Button
+                                  onClick={handleRatingSubmit}
+                                  className="bg-yellow-400 text-black hover:bg-yellow-500"
                         disabled={newRating === 0}
-                      >
+                                >
                         Kaydet
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
               </div>
             </TabsContent>
             <TabsContent value="reviews" className="py-6">
@@ -280,18 +280,18 @@ function ProfileContent() {
                   <div className="space-y-6">
                     {reviews.map((review: any) => (
                       <div key={review._id} className="space-y-2 rounded-lg border p-4">
-                        <div className="flex items-center gap-3">
-                          <Image
+                          <div className="flex items-center gap-3">
+                            <Image
                             src={review.book.coverImage || "/images/books/default-book.svg"}
                             alt={review.book.title}
-                            width={40}
-                            height={60}
-                            className="rounded"
-                          />
+                              width={40}
+                              height={60}
+                              className="rounded"
+                            />
                           <div className="flex-1">
                             <Link href={`/book/${review.book._id}`} className="font-medium hover:underline">
                               {review.book.title}
-                            </Link>
+                              </Link>
                             <p className="text-sm text-gray-500">Yazar: {review.book.author}</p>
                           </div>
                           <div className="flex gap-2">
@@ -301,13 +301,13 @@ function ProfileContent() {
                             <Button size="sm" variant="destructive" onClick={() => handleDeleteReview(review)}>
                               Sil
                             </Button>
+                            </div>
                           </div>
+                          <p className="text-gray-700">{review.content}</p>
+                          <p className="text-sm text-gray-500">
+                            Yayınlanma: {new Date(review.date).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-gray-700">{review.content}</p>
-                        <p className="text-sm text-gray-500">
-                          Yayınlanma: {new Date(review.date).toLocaleDateString()}
-                        </p>
-                      </div>
                     ))}
                   </div>
                 ) : (

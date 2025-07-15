@@ -96,8 +96,8 @@ export function BookDetails({ book, userRating, onReviewAdded }: BookDetailsProp
         return
       }
       const newReview = await res.json();
-      setIsReviewDialogOpen(false)
-      setReview("")
+    setIsReviewDialogOpen(false)
+    setReview("")
       if (onReviewAdded) onReviewAdded(newReview)
     } catch {
       // Hata durumunda sessizce devam et
@@ -246,7 +246,7 @@ export function BookDetails({ book, userRating, onReviewAdded }: BookDetailsProp
                     disabled={!selectedListId || adding}
                   >
                     Ekle
-                  </Button>
+            </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

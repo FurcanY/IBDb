@@ -54,8 +54,8 @@ export function ReviewList({ reviews, bookId }: ReviewListProps) {
         // Hata durumunda sessizce devam et
         return
       }
-      setIsReviewDialogOpen(false)
-      setReview("")
+    setIsReviewDialogOpen(false)
+    setReview("")
       setEditingReview(null)
       window.location.reload()
     } catch {

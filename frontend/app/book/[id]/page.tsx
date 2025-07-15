@@ -42,6 +42,32 @@ export default function BookPage() {
     fetchBook()
   }, [bookId])
 
+  // fetchBook fonksiyonunu prop olarak geçir
+  const fetchBook = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`http://localhost:5000/api/books/${bookId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      const reviews = (data.reviews || []).map((r: any) => ({ 
+        ...r, 
+        id: r._id,
+        userId: r.user._id,
+        userName: `${r.user.name} ${r.user.surname}`,
+        userImage: r.user.profileImage || "/images/profiles/default-profile.svg"
+      }))
+      const bookData = { ...data, id: data._id, rating: data.averageRating, reviews }
+      setBook(bookData)
+      setUserRating(data.userRating ?? null)
+    } catch {
+      setBook(null)
+      setUserRating(null)
+    }
+    setLoading(false)
+  }
+
   if (loading) {
     return <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-gray-500">Yükleniyor...</div>
   }
@@ -52,7 +78,7 @@ export default function BookPage() {
   return (
     <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="space-y-8">
-        <BookDetails book={book} userRating={userRating} onReviewAdded={(newReview) => setBook((prev: any) => ({ ...prev, reviews: [...(prev.reviews || []), { ...newReview, id: newReview._id }] }))} />
+        <BookDetails book={book} userRating={userRating} onReviewAdded={fetchBook} />
         <Separator className="my-8" />
         <div className="max-w-4xl mx-auto">
           <ReviewList reviews={book.reviews || []} bookId={book.id || bookId} />

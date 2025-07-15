@@ -86,7 +86,7 @@ export default function EditProfilePage() {
         const updated = await res.json();
         localStorage.setItem("user", JSON.stringify(updated));
         window.dispatchEvent(new Event('authChanged'));
-        router.push("/profile")
+    router.push("/profile")
       }
       // Başarısız olursa sessizce kal
     } catch {}

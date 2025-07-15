@@ -10,8 +10,16 @@ export default function ReviewCard({ review }: ReviewCardProps) {
     <div className="rounded-lg border p-4">
       <div className="flex items-start gap-3">
         <Image
-          src={review.userImage || "/images/profiles/default-profile.svg"}
-          alt={review.userName || "Kullanıcı profil fotoğrafı"}
+          src={
+            (review.user && review.user.profileImage) ||
+            review.userImage ||
+            "/images/profiles/default-profile.svg"
+          }
+          alt={
+            (review.user && (review.user.name + ' ' + review.user.surname)) ||
+            review.userName ||
+            "Kullanıcı profil fotoğrafı"
+          }
           width={40}
           height={40}
           className="rounded-full"

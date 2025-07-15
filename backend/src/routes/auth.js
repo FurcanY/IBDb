@@ -19,7 +19,7 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({ name, surname, email, password: hashedPassword });
     const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, surname: user.surname, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, surname: user.surname, email: user.email, profileImage: user.profileImage } });
   } catch (err) {
     res.status(500).json({ message: 'Sunucu hatası', error: err.message });
   }
@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Şifre hatalı' });
     }
     const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, surname: user.surname, email: user.email } });
+    res.json({ token, user: { id: user._id, name: user.name, surname: user.surname, email: user.email, profileImage: user.profileImage } });
   } catch (err) {
     res.status(500).json({ message: 'Sunucu hatası', error: err.message });
   }
