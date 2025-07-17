@@ -1,0 +1,62 @@
+version: "3.8"
+services:
+  mongo:
+    image: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/ibdb_temp
+      - RABBITMQ_URL=amqp://rabbitmq
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+      - rabbitmq
+    ports:
+      - "5000:5000"
+
+  moderationworker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/ibdb_temp
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - mongo
+      - rabbitmq
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:5000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo-data: 
